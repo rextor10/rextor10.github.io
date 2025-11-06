@@ -1,439 +1,837 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Text-to-DNA Data Storage Simulator</title>
-    <!-- Load Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Configure Tailwind for Inter font and custom colors -->
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        'dna-a': '#ef4444', // Red
-                        'dna-t': '#3b82f6', // Blue
-                        'dna-c': '#10b981', // Green
-                        'dna-g': '#f59e0b', // Yellow
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        /* Base styles for the canvas */
-        #dnaCanvas {
-            border: 2px solid #e5e7eb;
-            background-color: #f9fafb;
-            border-radius: 0.5rem;
-            width: 100%;
-            height: 200px;
-        }
-        /* Style for the button */
-        .action-button {
-            transition: all 0.2s;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-        }
-        .action-button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-        }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Simple NAS Playground — Single File</title>
+<style>
+  :root{
+    --bg:#0f1724;
+    --card:#0b1220;
+    --muted:#8892a6;
+    --accent:#7c3aed;
+    --accent-2:#06b6d4;
+    --glass: rgba(255,255,255,0.04);
+    --glass-2: rgba(255,255,255,0.02);
+    --success: #16a34a;
+    --danger:#ef4444;
+    color-scheme: dark;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%; margin:0; background:linear-gradient(180deg,#071026 0%, #071427 60%), var(--bg); color:#e6eef8}
+  .app{
+    display:grid;
+    grid-template-columns: 360px 1fr 420px;
+    gap:20px;
+    padding:28px;
+    height:100vh;
+    align-items:start;
+  }
+
+  /* left panel */
+  .panel{
+    background:linear-gradient(180deg,var(--card), rgba(10,12,20,0.7));
+    border-radius:14px;
+    padding:18px;
+    box-shadow: 0 6px 24px rgba(2,6,23,0.6);
+    border:1px solid rgba(255,255,255,0.03);
+  }
+  h2{margin:0 0 10px 0; font-size:18px}
+  label{display:block; font-size:13px; color:var(--muted); margin-top:12px}
+  .row{display:flex; gap:8px; align-items:center; margin-top:10px}
+  select,input[type=range], input[type=number], input[type=text]{
+    width:100%;
+    background:var(--glass);
+    border:1px solid rgba(255,255,255,0.03);
+    padding:8px 10px;
+    color:inherit;
+    border-radius:8px;
+    outline:none;
+  }
+  .small{width:90px}
+  button{
+    padding:10px 14px;
+    border-radius:10px;
+    border:0;
+    cursor:pointer;
+    background:linear-gradient(90deg,var(--accent), #5b21b6);
+    color:white;
+    font-weight:600;
+    box-shadow: 0 6px 18px rgba(124,58,237,0.16);
+  }
+  button.secondary{
+    background:linear-gradient(90deg,#1f2937,#111827);
+    box-shadow:none;
+    color:var(--muted);
+    border:1px solid rgba(255,255,255,0.03);
+  }
+  .muted{color:var(--muted); font-size:13px}
+  .controls-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px}
+  .metric{
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:10px;
+    padding:10px;
+    text-align:center;
+  }
+  .metric .n{font-size:20px; font-weight:700}
+  .flex{display:flex; gap:8px; align-items:center}
+  .chip{
+    padding:6px 10px; border-radius:999px; background:var(--glass-2); color:var(--muted); font-size:13px;
+    border:1px solid rgba(255,255,255,0.02);
+  }
+
+  /* center visualization */
+  .visual{
+    display:flex; flex-direction:column; gap:12px;
+    min-height:0;
+  }
+  .canvas-card{
+    flex:1;
+    background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:14px;
+    padding:12px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    overflow:hidden;
+  }
+  #viz{
+    flex:1;
+    border-radius:10px;
+    background:linear-gradient(180deg, rgba(5,8,15,0.9), rgba(2,6,23,0.6));
+    border:1px solid rgba(255,255,255,0.03);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    overflow:auto;
+  }
+  #graphSVG{width:100%; height:100%}
+
+  .toolbar{display:flex; gap:8px; align-items:center; justify-content:space-between}
+  .legend{display:flex; gap:10px; align-items:center}
+  .legend .item{display:flex; gap:8px; align-items:center; font-size:13px; color:var(--muted)}
+  .legend .dot{width:12px; height:12px; border-radius:3px}
+
+  /* right leaderboard */
+  .leader{
+    display:flex; flex-direction:column; gap:12px;
+  }
+  .card{
+    padding:12px; border-radius:12px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border:1px solid rgba(255,255,255,0.03);
+  }
+  .list{display:flex; flex-direction:column; gap:8px; max-height:58vh; overflow:auto; padding-right:6px}
+  .candidate{
+    display:flex; gap:10px; align-items:center; padding:8px; border-radius:8px;
+    transition:transform .08s ease;
+    cursor:pointer;
+  }
+  .candidate:hover{transform:translateY(-3px)}
+  .candidate .mini{width:56px; height:44px; background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border-radius:6px; display:flex; flex-direction:column; justify-content:center; align-items:center; font-weight:700; color:var(--muted); font-size:12px}
+  .candidate .meta{flex:1}
+  .candidate .meta .title{font-weight:700}
+  .candidate .meta .sub{font-size:12px; color:var(--muted)}
+  .candidate .score{font-weight:800}
+  .empty{color:var(--muted); font-size:13px; text-align:center; padding:18px}
+
+  footer{font-size:12px; color:var(--muted); text-align:center; margin-top:6px}
+
+  /* responsive */
+  @media (max-width:1100px){
+    .app{grid-template-columns: 1fr; padding:16px; overflow:auto}
+    .visual{order:2}
+    .leader{order:3}
+  }
+
+  /* small helper */
+  .kbd{font-family:monospace; font-size:12px; padding:6px 8px; background:rgba(255,255,255,0.03); border-radius:6px}
+</style>
 </head>
-<body class="bg-gray-50 min-h-screen p-4 sm:p-8 font-sans">
+<body>
+<div class="app">
+  <!-- Left: Controls -->
+  <div class="panel">
+    <h2>NAS Playground</h2>
+    <div class="muted">Experiment with simple Neural Architecture Search. No training — simulated evaluation for quick exploration.</div>
 
-    <div class="max-w-4xl mx-auto bg-white p-6 md:p-10 rounded-xl shadow-2xl">
-        <h1 class="text-3xl font-bold text-gray-800 mb-6 border-b pb-2">DNA Data Encoding Simulator</h1>
+    <label>Search Method</label>
+    <select id="method">
+      <option value="random">Random Search</option>
+      <option value="evolution">Evolutionary (EA)</option>
+    </select>
 
-        <!-- Input Text Section -->
-        <div class="mb-8">
-            <label for="inputText" class="block text-sm font-medium text-gray-700 mb-2">Original Text Input:</label>
-            <textarea id="inputText" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition duration-150" rows="3" placeholder="Enter the text to encode (e.g., 'Hello world!')">Hello, Gemini!</textarea>
-        </div>
-
-        <!-- Mapping Configuration Section -->
-        <div class="mb-8 p-5 bg-blue-50 rounded-lg shadow-inner">
-            <h2 class="text-lg font-semibold text-blue-800 mb-3">2-Bit DNA Base Mappings</h2>
-            <p class="text-sm text-blue-700 mb-4">Assign a unique 2-bit code (00, 01, 10, 11) to each DNA base.</p>
-            <div id="mappingInputs" class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <!-- Inputs generated by JS for A, T, C, G -->
-            </div>
-        </div>
-
-        <!-- Controls and Output Section -->
-        <div class="flex flex-col md:flex-row gap-4 mb-8">
-            <button id="encodeButton" onclick="handleEncodeAndVisualize()" class="action-button flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg text-center">
-                1. Encode & Visualize (Re-Simulate)
-            </button>
-            <button id="decodeButton" onclick="handleDecode()" class="action-button flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg text-center">
-                2. Decode Sequence
-            </button>
-        </div>
-
-        <!-- DNA Sequence Visualization -->
-        <div class="mb-8">
-            <h2 class="text-xl font-semibold text-gray-800 mb-3">DNA Sequence Visualization</h2>
-            <canvas id="dnaCanvas" width="800" height="200"></canvas>
-            <div class="mt-3 p-4 bg-gray-100 rounded-lg text-sm font-mono break-all text-gray-700">
-                <span class="font-bold text-gray-900">Sequence String:</span>
-                <span id="dnaSequenceOutput" class="ml-2">Awaiting Encoding...</span>
-            </div>
-            <div class="mt-3">
-                <span class="font-bold text-gray-900">Base Colors:</span>
-                <span class="inline-block w-4 h-4 rounded-full bg-dna-a ml-2 mr-1"></span> A
-                <span class="inline-block w-4 h-4 rounded-full bg-dna-t ml-2 mr-1"></span> T
-                <span class="inline-block w-4 h-4 rounded-full bg-dna-c ml-2 mr-1"></span> C
-                <span class="inline-block w-4 h-4 rounded-full bg-dna-g ml-2 mr-1"></span> G
-            </div>
-        </div>
-
-        <!-- Decoded Text Output -->
-        <div>
-            <h2 class="text-xl font-semibold text-gray-800 mb-3">Decoded Text</h2>
-            <div id="decodedTextOutput" class="p-4 min-h-[4rem] bg-amber-100 border-l-4 border-amber-500 rounded-lg text-gray-800 font-medium">
-                Awaiting Decoding...
-            </div>
-        </div>
-
-        <!-- Error/Status Message Box (Hidden by default) -->
-        <div id="statusMessage" class="hidden fixed bottom-4 right-4 p-4 text-white rounded-lg shadow-xl z-50 transition-opacity duration-300" role="alert"></div>
-
+    <div class="controls-grid">
+      <div>
+        <label>Population Size <span class="muted" id="popLabel"> (20)</span></label>
+        <input type="range" id="pop" min="4" max="80" value="20" />
+      </div>
+      <div>
+        <label>Generations / Iterations <span class="muted" id="genLabel">(30)</span></label>
+        <input type="range" id="generations" min="1" max="200" value="30"/>
+      </div>
+      <div>
+        <label>Max Layers <span class="muted" id="layersLabel">(6)</span></label>
+        <input type="range" id="maxLayers" min="1" max="12" value="6"/>
+      </div>
+      <div>
+        <label>Max Neurons/Layer <span class="muted" id="neuronsLabel">(256)</span></label>
+        <input type="range" id="maxNeurons" min="8" max="1024" value="256"/>
+      </div>
     </div>
 
+    <label>EA Controls</label>
+    <div class="row">
+      <div style="flex:1">
+        <label>Mutation Rate <span class="muted" id="mutLabel">(0.15)</span></label>
+        <input type="range" id="mutRate" min="0" max="0.6" step="0.01" value="0.15"/>
+      </div>
+      <div style="width:110px">
+        <label><span class="muted">Elite</span></label>
+        <input type="number" id="elite" class="small" min="0" max="20" value="2"/>
+      </div>
+    </div>
+
+    <label>Architecture Constraints</label>
+    <div class="row">
+      <div class="chip">Conv Layers: optional</div>
+      <div class="chip">Dense Layers: yes</div>
+    </div>
+
+    <div style="display:flex; gap:8px; margin-top:14px;">
+      <button id="startBtn">Start Search</button>
+      <button id="stepBtn" class="secondary">Step</button>
+      <button id="stopBtn" class="secondary">Stop</button>
+    </div>
+
+    <div style="margin-top:12px; display:flex; gap:8px">
+      <button id="exportBtn" class="secondary">Export JSON</button>
+      <button id="clearBtn" class="secondary">Reset</button>
+    </div>
+
+    <div style="margin-top:14px" class="card">
+      <div style="display:flex; gap:10px; align-items:center; justify-content:space-between">
+        <div>
+          <div class="muted">Progress</div>
+          <div class="n" id="progressText">0 / 0</div>
+        </div>
+        <div>
+          <div class="muted">Best Score</div>
+          <div class="n" id="bestScore">—</div>
+        </div>
+      </div>
+      <div style="margin-top:10px; height:10px; background:rgba(255,255,255,0.03); border-radius:999px; overflow:hidden">
+        <div id="progressBar" style="height:100%; width:0%; background:linear-gradient(90deg,var(--accent), var(--accent-2))"></div>
+      </div>
+    </div>
+
+    <footer>Tip: Click a candidate on the right to view its architecture.</footer>
+  </div>
+
+  <!-- Center: Visualization -->
+  <div class="visual">
+    <div class="canvas-card">
+      <div class="toolbar">
+        <div class="flex">
+          <div class="legend">
+            <div class="item"><span class="dot" style="background:var(--accent)"></span>Layer</div>
+            <div class="item"><span class="dot" style="background:var(--accent-2)"></span>Connection</div>
+          </div>
+        </div>
+        <div class="flex">
+          <div class="muted">Selected:</div>
+          <div id="selectedTitle" class="chip">None</div>
+        </div>
+      </div>
+
+      <div id="viz">
+        <!-- SVG graph renders here -->
+        <svg id="graphSVG" viewBox="0 0 900 400" preserveAspectRatio="xMidYMid meet"></svg>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center; justify-content:space-between;">
+        <div class="muted">Visualization shows layer-by-layer architecture and a simulated score</div>
+        <div style="display:flex; gap:8px; align-items:center">
+          <div class="muted">Noise</div>
+          <input id="noise" type="range" min="0" max="0.2" step="0.01" value="0.04" style="width:140px"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="display:flex; gap:12px; align-items:center;">
+      <div style="flex:1">
+        <div class="muted">Selected architecture details</div>
+        <div id="details" style="margin-top:8px; font-family:monospace; font-size:13px; color:var(--muted)">No candidate selected.</div>
+      </div>
+      <div style="text-align:right">
+        <button id="favBtn" class="secondary">Add to Favorites</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Leaderboard -->
+  <div class="panel leader">
+    <div style="display:flex; justify-content:space-between; align-items:center">
+      <h2 style="font-size:16px">Leaderboard</h2>
+      <div class="muted">Top candidates</div>
+    </div>
+
+    <div class="card" style="padding:8px;">
+      <div class="muted">Best across runs</div>
+      <div class="list" id="leaderList">
+        <div class="empty">No candidates yet — run the search!</div>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:8px">
+        <button id="downloadBtn" class="secondary">Download Best</button>
+        <button id="shuffleBtn" class="secondary">Randomize Space</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="muted">Run Log</div>
+      <div id="log" style="font-family:monospace; font-size:12px; color:var(--muted); max-height:200px; overflow:auto; margin-top:8px"></div>
+    </div>
+  </div>
+</div>
+
 <script>
-    // Global variables for Firebase constants (required by the environment, not used here)
-    const __app_id = 'dna-simulator';
-    const __firebase_config = '{}';
-    const __initial_auth_token = null;
+/*
+  Simple NAS Playground
+  - Single-file demo that simulates architecture search.
+  - Architectures are represented as arrays of layers: {type:'dense', units:int}
+  - Scoring is simulated: an "ideal" parameter count yields max simulated accuracy.
+  - Supports Random Search and a simple Evolutionary algorithm (tournament + mutation).
+*/
 
-    // --- STATE AND SETUP ---
+// Utilities
+const rand = (a=0,b=1) => a + Math.random()*(b-a);
+const randint = (a,b) => Math.floor(rand(a,b+1));
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const uid = ()=>Math.random().toString(36).slice(2,9);
 
-    const BASES = ['A', 'T', 'C', 'G'];
-    const DEFAULT_MAPPING = {
-        'A': '00',
-        'T': '01',
-        'C': '10',
-        'G': '11',
-    };
-    let currentDNASequence = '';
-    let currentMapping = { ...DEFAULT_MAPPING };
+// DOM refs
+const methodEl = document.getElementById('method');
+const popEl = document.getElementById('pop');
+const popLabel = document.getElementById('popLabel');
+const genEl = document.getElementById('generations');
+const genLabel = document.getElementById('genLabel');
+const maxLayersEl = document.getElementById('maxLayers');
+const maxNeuronsEl = document.getElementById('maxNeurons');
+const mutRateEl = document.getElementById('mutRate');
+const mutLabel = document.getElementById('mutLabel');
+const eliteEl = document.getElementById('elite');
+const startBtn = document.getElementById('startBtn');
+const stopBtn = document.getElementById('stopBtn');
+const stepBtn = document.getElementById('stepBtn');
+const exportBtn = document.getElementById('exportBtn');
+const clearBtn = document.getElementById('clearBtn');
+const progressText = document.getElementById('progressText');
+const progressBar = document.getElementById('progressBar');
+const bestScoreEl = document.getElementById('bestScore');
+const leaderList = document.getElementById('leaderList');
+const logEl = document.getElementById('log');
+const graphSVG = document.getElementById('graphSVG');
+const detailsEl = document.getElementById('details');
+const selectedTitleEl = document.getElementById('selectedTitle');
+const favBtn = document.getElementById('favBtn');
+const noiseEl = document.getElementById('noise');
+const downloadBtn = document.getElementById('downloadBtn');
+const shuffleBtn = document.getElementById('shuffleBtn');
 
-    const elements = {
-        mappingInputs: document.getElementById('mappingInputs'),
-        inputText: document.getElementById('inputText'),
-        dnaSequenceOutput: document.getElementById('dnaSequenceOutput'),
-        decodedTextOutput: document.getElementById('decodedTextOutput'),
-        dnaCanvas: document.getElementById('dnaCanvas'),
-        statusMessage: document.getElementById('statusMessage'),
-        ctx: null,
-    };
+const layersLabel = document.getElementById('layersLabel');
+const neuronsLabel = document.getElementById('neuronsLabel');
+const mutRateLabel = document.getElementById('mutLabel');
 
-    // Visualization configuration
-    const COLOR_MAP = {
-        'A': '#ef4444', // Red
-        'T': '#3b82f6', // Blue
-        'C': '#10b981', // Green
-        'G': '#f59e0b', // Yellow
-    };
+// reactive labels
+popEl.addEventListener('input', ()=> popLabel.textContent = ` (${popEl.value})`);
+genEl.addEventListener('input', ()=> genLabel.textContent = `(${genEl.value})`);
+maxLayersEl.addEventListener('input', ()=> layersLabel.textContent = `(${maxLayersEl.value})`);
+maxNeuronsEl.addEventListener('input', ()=> neuronsLabel.textContent = `(${maxNeuronsEl.value})`);
+mutRateEl.addEventListener('input', ()=> mutRateLabel.textContent = `(${mutRateEl.value})`);
 
-    /**
-     * Shows a non-blocking status message.
-     * @param {string} message The message to display.
-     * @param {string} type 'success' or 'error'
-     */
-    function showStatus(message, type) {
-        const msgBox = elements.statusMessage;
-        msgBox.textContent = message;
-        msgBox.className = 'fixed bottom-4 right-4 p-4 text-white rounded-lg shadow-xl z-50 transition-opacity duration-300';
+// NAS state
+let running = false;
+let state = {
+  population: [],
+  generation: 0,
+  totalGenerations: parseInt(genEl.value),
+  best: null,
+  leaderboard: [],
+  log: [],
+  favorites: []
+};
 
-        if (type === 'success') {
-            msgBox.classList.add('bg-green-500');
-        } else if (type === 'error') {
-            msgBox.classList.add('bg-red-500');
-        } else {
-             msgBox.classList.add('bg-gray-500');
-        }
-        msgBox.classList.remove('hidden');
+// Search-space randomizer (for shuffle)
+let spaceRandomization = {
+  convChance: 0.3,
+  skipChance: 0.05,
+  idealParamsLog10: 5.2 // log10 ideal param count ~ 1e5
+};
 
-        setTimeout(() => {
-            msgBox.classList.add('opacity-0');
-            setTimeout(() => {
-                msgBox.classList.add('hidden');
-                msgBox.classList.remove('opacity-0');
-            }, 300);
-        }, 3000);
+// Create random architecture
+function randomArch(){
+  const maxLayers = parseInt(maxLayersEl.value);
+  const maxNeurons = parseInt(maxNeuronsEl.value);
+  const num = randint(1, maxLayers);
+  const layers = [];
+  for(let i=0;i<num;i++){
+    // simple: either dense or conv (visual only)
+    const isConv = Math.random() < spaceRandomization.convChance && i < num-1;
+    if(isConv){
+      const filters = Math.pow(2, randint(3, Math.floor(Math.log2(Math.max(8,maxNeurons)))));
+      layers.push({type:'conv', filters, kernel: randint(1,5)});
+    } else {
+      const units = Math.max(8, Math.round(randint(8, maxNeurons)/8)*8);
+      layers.push({type:'dense', units});
+    }
+  }
+  return {id: uid(), layers, created: Date.now()};
+}
+
+// Parameter count estimator (very rough)
+function estimateParams(arch){
+  // treat conv as small multiplier, dense as units^1.2
+  let params = 0;
+  for(let l of arch.layers){
+    if(l.type==='conv'){
+      params += l.filters * l.kernel * 3; // pretend small receptive field * channels
+    } else {
+      params += Math.pow(l.units, 1.2);
+    }
+  }
+  // clamp and return
+  return Math.max(10, Math.round(params));
+}
+
+// Simulated accuracy model
+function simulateScore(arch, noiseLevel=0.04){
+  const params = estimateParams(arch);
+  const logp = Math.log10(params);
+  const ideal = spaceRandomization.idealParamsLog10; // e.g., 5.2 -> ~1.58e5
+  const diff = Math.abs(logp - ideal);
+  // gaussian-like drop as diff grows
+  const base = Math.exp(-Math.pow(diff/0.8,2));
+  // smaller architectures get small boost (regularization) but too small is worse
+  const complexityPenalty = Math.tanh((logp-2)/3);
+  let score = 0.25 + 0.7 * base * complexityPenalty;
+  // add noise
+  score += rand(-noiseLevel, noiseLevel);
+  score = clamp(score, 0.01, 0.9999);
+  return {score: score, params};
+}
+
+// Population initialization
+function initPopulation(n){
+  state.population = [];
+  for(let i=0;i<n;i++){
+    const a = randomArch();
+    const res = simulateScore(a, parseFloat(noiseEl.value));
+    state.population.push({...a, score: res.score, params: res.params});
+  }
+  state.generation = 0;
+  log(`Initialized population (${n})`);
+}
+
+// Logging util
+function log(txt){
+  const now = new Date().toLocaleTimeString();
+  state.log.unshift(`[${now}] ${txt}`);
+  if(state.log.length>400) state.log.length=400;
+  renderLog();
+}
+function renderLog(){
+  logEl.innerHTML = state.log.slice(0,200).map(s=>s.replace(/</g,'&lt;')).join('<br>');
+}
+
+// Render leaderboard
+function renderLeaderboard(){
+  const combined = [...state.leaderboard].sort((a,b)=>b.score - a.score).slice(0,80);
+  if(combined.length===0){
+    leaderList.innerHTML = '<div class="empty">No candidates yet — run the search!</div>';
+    return;
+  }
+  leaderList.innerHTML = '';
+  for(let c of combined){
+    const node = document.createElement('div');
+    node.className = 'candidate';
+    node.dataset.id = c.id;
+    node.innerHTML = `
+      <div class="mini">${Math.round(c.params)}</div>
+      <div class="meta">
+        <div class="title">Arch ${c.id.slice(0,5)}</div>
+        <div class="sub">${c.layers.length} layers • ${c.created? new Date(c.created).toLocaleString():''}</div>
+      </div>
+      <div class="score">${(c.score*100).toFixed(2)}%</div>
+    `;
+    node.addEventListener('click', ()=> selectCandidate(c));
+    leaderList.appendChild(node);
+  }
+}
+
+// Select & display
+let selected = null;
+function selectCandidate(c){
+  selected = c;
+  selectedTitleEl.textContent = `Arch ${c.id.slice(0,6)}`;
+  const lines = [
+    `ID: ${c.id}`,
+    `Score: ${(c.score*100).toFixed(3)}%`,
+    `Params: ${c.params}`,
+    `Layers: ${c.layers.length}`,
+    `Created: ${new Date(c.created).toLocaleString()}`,
+    '',
+    'Architecture:',
+    ...c.layers.map((l,i)=>`  ${i+1}. ${l.type.toUpperCase()} ${l.type==='dense' ? l.units + ' units' : `${l.filters}f k${l.kernel}`}`)
+  ];
+  detailsEl.textContent = lines.join('\n');
+  drawArch(c);
+}
+
+// Draw architecture in SVG
+function drawArch(cand){
+  const svg = graphSVG;
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+
+  if(!cand) return;
+
+  const w = svg.viewBox.baseVal.width || 900;
+  const h = svg.viewBox.baseVal.height || 400;
+  const layers = cand.layers;
+  const margin = 30;
+  const colWidth = (w - margin*2) / Math.max(1, layers.length);
+  const nodeSize = 28;
+
+  // draw connections
+  for(let i=0;i<layers.length-1;i++){
+    const x1 = margin + i*colWidth + colWidth/2;
+    const x2 = margin + (i+1)*colWidth + colWidth/2;
+    const y1 = h/2;
+    const y2 = h/2;
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', x1);
+    line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2);
+    line.setAttribute('y2', y2);
+    line.setAttribute('stroke', '#06b6d4');
+    line.setAttribute('stroke-width', 3);
+    line.setAttribute('stroke-opacity', 0.6);
+    svg.appendChild(line);
+  }
+
+  // draw nodes
+  layers.forEach((l,i)=>{
+    const cx = margin + i*colWidth + colWidth/2;
+    const cy = h/2;
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    // shape
+    if(l.type==='conv'){
+      const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      rect.setAttribute('x', cx - nodeSize);
+      rect.setAttribute('y', cy - nodeSize/1.8);
+      rect.setAttribute('width', nodeSize*2);
+      rect.setAttribute('height', nodeSize*1.6);
+      rect.setAttribute('rx',6);
+      rect.setAttribute('fill', '#7c3aed');
+      rect.setAttribute('fill-opacity', 0.14);
+      rect.setAttribute('stroke', '#7c3aed');
+      rect.setAttribute('stroke-opacity',0.9);
+      rect.setAttribute('stroke-width',1.6);
+      g.appendChild(rect);
+    } else {
+      const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      circle.setAttribute('cx', cx);
+      circle.setAttribute('cy', cy);
+      circle.setAttribute('r', nodeSize);
+      circle.setAttribute('fill', '#06b6d4');
+      circle.setAttribute('fill-opacity', 0.12);
+      circle.setAttribute('stroke', '#06b6d4');
+      circle.setAttribute('stroke-opacity',0.9);
+      circle.setAttribute('stroke-width',1.6);
+      g.appendChild(circle);
     }
 
-    /**
-     * Generates and initializes mapping input fields.
-     */
-    function initMappingInputs() {
-        BASES.forEach(base => {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'flex items-center space-x-2';
+    // text label
+    const t1 = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t1.setAttribute('x', cx);
+    t1.setAttribute('y', cy - nodeSize - 6);
+    t1.setAttribute('text-anchor','middle');
+    t1.setAttribute('font-size','12');
+    t1.setAttribute('fill','#e6eef8');
+    t1.setAttribute('opacity',0.9);
+    const label = l.type === 'dense' ? `${l.units}u` : `${l.filters}f`;
+    t1.textContent = label;
+    g.appendChild(t1);
 
-            const label = document.createElement('label');
-            label.setAttribute('for', `map_${base}`);
-            label.className = `text-lg font-bold text-gray-700 w-6 text-center rounded-md p-1 bg-white shadow-sm border`;
-            label.textContent = base;
+    svg.appendChild(g);
+  });
 
-            const input = document.createElement('input');
-            input.id = `map_${base}`;
-            input.type = 'text';
-            input.maxLength = 2;
-            input.value = DEFAULT_MAPPING[base];
-            input.className = 'w-16 p-2 border border-gray-300 rounded-lg text-center font-mono focus:ring-blue-500 focus:border-blue-500';
+  // score badge
+  const badge = document.createElementNS('http://www.w3.org/2000/svg','g');
+  const r = 54;
+  const bx = w - r - 24;
+  const by = r + 8;
+  const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  circle.setAttribute('cx', bx); circle.setAttribute('cy', by);
+  circle.setAttribute('r', r);
+  circle.setAttribute('fill', '#0b1220'); circle.setAttribute('fill-opacity', 0.8);
+  circle.setAttribute('stroke', '#7c3aed'); circle.setAttribute('stroke-width',2);
+  badge.appendChild(circle);
+  const scoreText = document.createElementNS('http://www.w3.org/2000/svg','text');
+  scoreText.setAttribute('x', bx); scoreText.setAttribute('y', by+6); scoreText.setAttribute('text-anchor','middle');
+  scoreText.setAttribute('font-size','20'); scoreText.setAttribute('fill','#e6eef8'); scoreText.setAttribute('font-weight','700');
+  scoreText.textContent = (cand.score*100).toFixed(2) + '%';
+  badge.appendChild(scoreText);
+  svg.appendChild(badge);
+}
 
-            wrapper.appendChild(label);
-            wrapper.appendChild(input);
-            elements.mappingInputs.appendChild(wrapper);
-        });
+// Genetic operators
+function mutate(arch, rate){
+  const a = JSON.parse(JSON.stringify(arch));
+  // With some chance add/remove layer or tweak units
+  if(Math.random() < rate){
+    // decide op
+    const op = Math.random();
+    if(op < 0.35 && a.layers.length > 1){
+      // remove random layer
+      a.layers.splice(randint(0,a.layers.length-1),1);
+    } else if(op < 0.7 && a.layers.length < parseInt(maxLayersEl.value)){
+      // add layer
+      const isConv = Math.random() < spaceRandomization.convChance;
+      if(isConv){
+        a.layers.splice(randint(0,a.layers.length),0,{type:'conv', filters: Math.pow(2, randint(3,7)), kernel: randint(1,5)});
+      } else {
+        a.layers.splice(randint(0,a.layers.length),0,{type:'dense', units: Math.max(8, randint(8, parseInt(maxNeuronsEl.value)))});
+      }
+    } else {
+      // tweak random layer
+      const idx = randint(0, a.layers.length-1);
+      const l = a.layers[idx];
+      if(l.type==='dense'){
+        l.units = clamp(Math.round(l.units * (1 + rand(-0.5,0.6))), 8, parseInt(maxNeuronsEl.value));
+      } else {
+        l.filters = Math.max(4, Math.round(l.filters * (1 + rand(-0.4,0.6))));
+      }
     }
+  }
+  return {...a, id: uid(), created: Date.now()};
+}
 
-    /**
-     * Reads the current mapping from the input fields.
-     * @returns {object|null} The current mapping or null if invalid.
-     */
-    function readCurrentMapping() {
-        const newMapping = {};
-        const values = new Set();
-        let isValid = true;
+function crossover(a,b){
+  // single-point layer crossover
+  const la = a.layers; const lb = b.layers;
+  const pa = randint(0, la.length-1);
+  const pb = randint(0, lb.length-1);
+  const childLayers = la.slice(0,pa).concat(lb.slice(pb));
+  if(childLayers.length===0) childLayers.push({type:'dense', units:64});
+  return {id: uid(), layers: childLayers, created: Date.now()};
+}
 
-        BASES.forEach(base => {
-            const input = document.getElementById(`map_${base}`);
-            const value = input.value.trim();
+// Evolutionary step
+function evolveOnce(){
+  const pop = state.population;
+  const popSize = pop.length;
+  const eliteN = Math.max(0, parseInt(eliteEl.value));
+  // sort
+  pop.sort((a,b)=>b.score - a.score);
+  const survivors = pop.slice(0, eliteN); // carry elite
+  // create offspring via tournament selection
+  while(survivors.length < popSize){
+    // tournament
+    const a = pop[randint(0,popSize-1)];
+    const b = pop[randint(0,popSize-1)];
+    const parent1 = a.score > b.score ? a : b;
+    const c = pop[randint(0,popSize-1)];
+    const d = pop[randint(0,popSize-1)];
+    const parent2 = c.score > d.score ? c : d;
+    // crossover
+    let child = crossover(parent1, parent2);
+    // mutate
+    child = mutate(child, parseFloat(mutRateEl.value));
+    const res = simulateScore(child, parseFloat(noiseEl.value));
+    survivors.push({...child, score: res.score, params: res.params});
+  }
+  state.population = survivors;
+}
 
-            if (!['00', '01', '10', '11'].includes(value)) {
-                showStatus(`Invalid code for ${base}. Must be '00', '01', '10', or '11'.`, 'error');
-                isValid = false;
-            } else if (values.has(value)) {
-                showStatus(`Code '${value}' is assigned to multiple bases. Mappings must be unique.`, 'error');
-                isValid = false;
-            }
-            newMapping[base] = value;
-            values.add(value);
-        });
+// Random search step (one generation = sample new candidates and combine)
+function randomOnce(){
+  const newPop = [];
+  const n = state.population.length;
+  for(let i=0;i<n;i++){
+    const a = randomArch();
+    const res = simulateScore(a, parseFloat(noiseEl.value));
+    newPop.push({...a, score: res.score, params: res.params});
+  }
+  state.population = state.population.concat(newPop).sort((a,b)=>b.score-a.score).slice(0,n);
+}
 
-        if (!isValid) return null;
-        return newMapping;
+// Run loop
+async function runLoop(){
+  running = true;
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
+  stepBtn.disabled = true;
+  const total = parseInt(genEl.value);
+  state.totalGenerations = total;
+  let current = 0;
+  while(running && current < total){
+    // perform step
+    if(methodEl.value === 'random'){
+      randomOnce();
+    } else {
+      evolveOnce();
     }
-
-    // --- CORE ENCODING/DECODING LOGIC ---
-
-    /**
-     * Converts a text string into its full 8-bit binary representation.
-     * @param {string} text
-     * @returns {string} The concatenated binary string.
-     */
-    function textToBinary(text) {
-        let binary = '';
-        for (let i = 0; i < text.length; i++) {
-            // Convert character's ASCII code to 8-bit binary string
-            binary += text.charCodeAt(i).toString(2).padStart(8, '0');
-        }
-        return binary;
+    state.generation++;
+    current++;
+    // update best
+    state.population.sort((a,b)=>b.score-a.score);
+    const bestNow = state.population[0];
+    if(!state.best || bestNow.score > state.best.score){
+      state.best = {...bestNow};
+      // add to leaderboard
+      state.leaderboard.push({...bestNow});
     }
+    // update UI
+    updateProgress(current, total);
+    renderPopulationUI();
+    await sleep(60); // small pause for UX (non-blocking)
+  }
+  running = false;
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+  stepBtn.disabled = false;
+  log('Search finished.');
+}
 
-    /**
-     * Converts a binary string to a DNA sequence using the current mapping.
-     * @param {string} binary
-     * @param {object} mapping The DNA base to 2-bit mapping.
-     * @returns {string} The DNA sequence string.
-     */
-    function binaryToDNA(binary, mapping) {
-        let dna = '';
-        // Find the reverse mapping (2-bit code -> DNA base) for efficient lookup
-        const reverseMapping = {};
-        for (const base in mapping) {
-            reverseMapping[mapping[base]] = base;
-        }
+// small sleep
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
-        // Pad with '0' if length is odd to ensure 2-bit chunks
-        const paddedBinary = binary.length % 2 === 1 ? binary + '0' : binary;
+// UI updates
+function updateProgress(cur,total){
+  progressText.textContent = `${cur} / ${total}`;
+  progressBar.style.width = `${Math.round(cur/total*100)}%`;
+  bestScoreEl.textContent = state.best ? (state.best.score*100).toFixed(3) + '%' : '—';
+}
 
-        for (let i = 0; i < paddedBinary.length; i += 2) {
-            const twoBits = paddedBinary.substring(i, i + 2);
-            const base = reverseMapping[twoBits];
-            dna += base || 'X'; // Should always find a base if mapping is valid
-        }
-        return dna;
-    }
+function renderPopulationUI(){
+  // pick top 12 to show in leaderboard
+  const all = [...state.population, ...state.leaderboard];
+  // dedupe by id and sort
+  const map = new Map();
+  for(let a of all) {
+    if(!map.has(a.id) || map.get(a.id).score < a.score) map.set(a.id, a);
+  }
+  state.leaderboard = Array.from(map.values()).sort((a,b)=>b.score-a.score).slice(0,200);
+  renderLeaderboard();
+  // if none selected, select best
+  if(!selected && state.best) selectCandidate(state.best);
+  // also update small progress & log
+  log(`Gen ${state.generation} — best ${(state.best.score*100).toFixed(3)}% (${state.best.params} params)`);
+}
 
-    /**
-     * Converts a DNA sequence string back to its full binary representation.
-     * @param {string} dna
-     * @param {object} mapping The DNA base to 2-bit mapping.
-     * @returns {string} The concatenated binary string.
-     */
-    function dnaToBinary(dna, mapping) {
-        let binary = '';
-        for (let i = 0; i < dna.length; i++) {
-            const base = dna[i];
-            binary += mapping[base] || '';
-        }
-        return binary;
-    }
+// Buttons
+startBtn.addEventListener('click', ()=>{
+  // init if empty
+  const popSize = parseInt(popEl.value);
+  if(state.population.length < popSize){
+    initPopulation(popSize);
+  }
+  state.generation = 0;
+  runLoop();
+});
 
-    /**
-     * Converts a binary string back into a human-readable text string.
-     * @param {string} binary
-     * @returns {string} The decoded text.
-     */
-    function binaryToText(binary) {
-        let text = '';
-        // Process in 8-bit chunks
-        for (let i = 0; i < binary.length; i += 8) {
-            const byte = binary.substring(i, i + 8);
-            if (byte.length === 8) {
-                // Convert 8-bit binary string to integer, then to character
-                const charCode = parseInt(byte, 2);
-                text += String.fromCharCode(charCode);
-            }
-        }
-        return text;
-    }
+stopBtn.addEventListener('click', ()=> {
+  running = false;
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+  stepBtn.disabled = false;
+  log('Stopped by user.');
+});
 
-    // --- VISUALIZATION LOGIC ---
+stepBtn.addEventListener('click', ()=>{
+  if(state.population.length===0) initPopulation(parseInt(popEl.value));
+  // single step
+  if(methodEl.value === 'random') randomOnce(); else evolveOnce();
+  state.generation++;
+  // update best & UI
+  state.population.sort((a,b)=>b.score-a.score);
+  const bestNow = state.population[0];
+  if(!state.best || bestNow.score > state.best.score){
+    state.best = {...bestNow};
+    state.leaderboard.push({...bestNow});
+  }
+  renderPopulationUI();
+  updateProgress(state.generation, parseInt(genEl.value));
+});
 
-    /**
-     * Draws the DNA sequence as colored blocks on the canvas.
-     * @param {string} dnaSequence The sequence string to draw.
-     */
-    function drawSequence(dnaSequence) {
-        if (!elements.ctx) return;
+exportBtn.addEventListener('click', ()=>{
+  const payload = {
+    timestamp: Date.now(),
+    params: {
+      pop: popEl.value,
+      gens: genEl.value,
+      maxLayers: maxLayersEl.value,
+      maxNeurons: maxNeuronsEl.value,
+      method: methodEl.value,
+      mutRate: mutRateEl.value
+    },
+    leaderboard: state.leaderboard.slice(0,200)
+  };
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
+  a.download = `nas-run-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'_')}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
 
-        const canvas = elements.dnaCanvas;
-        canvas.width = canvas.clientWidth; // Adjust width to actual size
-        canvas.height = 200; // Keep height constant for visual stability
-        elements.ctx.clearRect(0, 0, canvas.width, canvas.height);
+clearBtn.addEventListener('click', ()=> {
+  running = false;
+  state = {population:[], generation:0, totalGenerations: parseInt(genEl.value), best:null, leaderboard:[], log:[], favorites:[]};
+  selected = null;
+  renderLeaderboard();
+  drawArch(null);
+  progressBar.style.width = '0%';
+  progressText.textContent = '0 / 0';
+  bestScoreEl.textContent = '—';
+  log('Reset complete.');
+});
 
-        const sequenceLength = dnaSequence.length;
-        if (sequenceLength === 0) return;
+favBtn.addEventListener('click', ()=>{
+  if(!selected) return;
+  state.favorites.push(selected);
+  log(`Added ${selected.id} to favorites.`);
+});
 
-        // Calculate block dimensions
-        const margin = 5;
-        const totalWidth = canvas.width - 2 * margin;
-        const totalHeight = canvas.height - 2 * margin;
+downloadBtn.addEventListener('click', ()=>{
+  if(state.leaderboard.length===0) return alert('No results to download.');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(state.leaderboard,null,2)],{type:'application/json'}));
+  a.download = `nas-leaderboard-${new Date().toISOString().slice(0,19).replace(/[:T]/g,'_')}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
 
-        const maxBlocks = Math.floor(totalWidth / 10); // Max blocks that fit (e.g., min block width 10px)
-        const displayLength = Math.min(sequenceLength, 250); // Limit to 250 for performance and visual clarity
-        const blockWidth = Math.floor(totalWidth / displayLength);
-        const blockHeight = totalHeight;
+shuffleBtn.addEventListener('click', ()=>{
+  // randomize the search-space parameters slightly
+  spaceRandomization.convChance = clamp(spaceRandomization.convChance + rand(-0.12, 0.12), 0, 0.6);
+  spaceRandomization.skipChance = clamp(spaceRandomization.skipChance + rand(-0.05,0.05), 0, 0.2);
+  spaceRandomization.idealParamsLog10 = clamp(spaceRandomization.idealParamsLog10 + rand(-0.6,0.6), 3.2, 7.0);
+  log(`Shuffled search space — conv ${spaceRandomization.convChance.toFixed(2)} idealLog10 ${spaceRandomization.idealParamsLog10.toFixed(2)}`);
+});
 
-        // Draw blocks
-        for (let i = 0; i < displayLength; i++) {
-            const base = dnaSequence[i];
-            const color = COLOR_MAP[base] || '#374151'; // Default gray for 'X' or error
-            const x = margin + i * blockWidth;
+// on load: initialize small population
+(function init(){
+  initPopulation(parseInt(popEl.value));
+  renderPopulationUI();
+  updateProgress(0, parseInt(genEl.value));
+})();
 
-            elements.ctx.fillStyle = color;
-            elements.ctx.fillRect(x, margin, blockWidth, blockHeight);
-        }
+// click outside to deselect
+graphSVG.addEventListener('click', (e)=>{
+  // nothing extra for now
+});
 
-        // Add a note if the sequence was truncated for display
-        if (sequenceLength > displayLength) {
-            elements.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            elements.ctx.font = '14px Arial';
-            elements.ctx.textAlign = 'right';
-            elements.ctx.fillText(`... ${sequenceLength - displayLength} more bases not shown`, canvas.width - margin - 5, canvas.height - 10);
-        }
-    }
-
-
-    // --- EVENT HANDLERS ---
-
-    /**
-     * Handles the 'Encode & Visualize' / 'Re-Simulate' action.
-     */
-    function handleEncodeAndVisualize() {
-        const text = elements.inputText.value;
-        const newMapping = readCurrentMapping();
-
-        if (!newMapping) {
-            // Error already shown in readCurrentMapping
-            return;
-        }
-
-        if (text.length === 0) {
-            showStatus("Please enter text to encode.", 'error');
-            return;
-        }
-
-        currentMapping = newMapping;
-
-        try {
-            // 1. Convert Text to Binary
-            const binarySequence = textToBinary(text);
-
-            // 2. Convert Binary to DNA
-            const dna = binaryToDNA(binarySequence, currentMapping);
-            currentDNASequence = dna;
-
-            // 3. Update UI and Visualize
-            elements.dnaSequenceOutput.textContent = dna;
-            drawSequence(dna);
-            elements.decodedTextOutput.textContent = 'Awaiting Decoding...'; // Reset decode output
-
-            showStatus('Text successfully encoded and visualized!', 'success');
-        } catch (error) {
-            console.error(error);
-            showStatus('An error occurred during encoding.', 'error');
-        }
-    }
-
-    /**
-     * Handles the 'Decode Sequence' action.
-     */
-    function handleDecode() {
-        if (!currentDNASequence) {
-            showStatus('Please run the "Encode & Visualize" step first.', 'error');
-            return;
-        }
-
-        try {
-            // 1. Convert DNA back to Binary using the current mapping
-            const binarySequence = dnaToBinary(currentDNASequence, currentMapping);
-
-            // 2. Convert Binary back to Text
-            const decodedText = binaryToText(binarySequence);
-
-            // 3. Update UI
-            elements.decodedTextOutput.textContent = decodedText;
-
-            // Check if decoding was perfect
-            const originalText = elements.inputText.value;
-            if (originalText === decodedText) {
-                showStatus('Decoding successful! Original text was perfectly recovered.', 'success');
-            } else {
-                showStatus('Decoding finished. Check for potential padding or truncation issues.', 'success');
-            }
-
-        } catch (error) {
-            console.error(error);
-            showStatus('An error occurred during decoding.', 'error');
-        }
-    }
-
-    // --- INITIALIZATION ---
-    window.onload = function() {
-        initMappingInputs();
-        elements.ctx = elements.dnaCanvas.getContext('2d');
-
-        // Initial run to show the default encoding
-        handleEncodeAndVisualize();
-
-        // Re-draw canvas on resize to maintain responsiveness
-        window.addEventListener('resize', () => {
-             if (currentDNASequence) {
-                drawSequence(currentDNASequence);
-             }
-        });
-    };
 </script>
-
 </body>
 </html>
